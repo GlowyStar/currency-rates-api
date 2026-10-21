@@ -42,5 +42,5 @@ select = ["E", "W", "F", "I", "B", "UP", "SIM", "ASYNC", "RUF"]
 
 [tool.mypy]
 strict = true
-files = ["src"]
+files = ["src", "migrations"]
 plugins = ["pydantic.mypy"]

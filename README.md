@@ -32,7 +32,8 @@ flowchart LR
 ```
 
 One image runs three processes: `api` (REST), `grpc` and `worker`. A one-shot `migrate`
-job applies the Alembic migrations before any of them starts.
+job applies the Alembic migrations and creates the ClickHouse table before any of them
+starts, so no process races another for the schema.
 
 ## Why two databases
 
@@ -163,6 +164,7 @@ src/currency_rates/
   storage/clickhouse.py             schema, inserts, latest and history queries
   ingestion/frankfurter.py          HTTP client with retries
   ingestion/worker.py               sync loop, cross rates
+  migrate.py, create_api_key.py     one-shot commands
   proto/                            rates.proto and its stubs
 migrations/                         Alembic
 tests/unit, tests/integration

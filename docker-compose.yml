@@ -50,9 +50,11 @@ services:
   migrate:
     <<: *app
     restart: "no"
-    command: ["alembic", "upgrade", "head"]
+    command: ["python", "-m", "currency_rates.migrate"]
     depends_on:
       postgres:
+        condition: service_healthy
+      clickhouse:
         condition: service_healthy
 
   api:

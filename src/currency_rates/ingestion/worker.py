@@ -78,7 +78,6 @@ async def run(settings: Settings) -> None:
     engine = create_async_engine(settings.postgres_dsn)
     session_factory = postgres.create_session_factory(engine)
     clickhouse_client = await clickhouse.connect(settings)
-    await clickhouse.create_schema(clickhouse_client)
 
     async with httpx.AsyncClient(base_url=settings.frankfurter_url, timeout=30) as http:
         frankfurter = FrankfurterClient(http)

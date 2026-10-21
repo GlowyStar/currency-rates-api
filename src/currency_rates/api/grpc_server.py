@@ -40,7 +40,9 @@ def _api_key(context: Context) -> str:
     return api_key if isinstance(api_key, str) else ""
 
 
-def _parse_date(value: str, field: str) -> dt.date:
+def _parse_optional_date(value: str, field: str) -> dt.date | None:
+    if not value:
+        return None
     try:
         return dt.date.fromisoformat(value)
     except ValueError as error:
@@ -81,8 +83,8 @@ class RatesServicer(rates_pb2_grpc.RatesServiceServicer):
                     self._clickhouse,
                     base=request.base,
                     quote=request.symbol,
-                    start=_parse_date(request.start, "start"),
-                    end=_parse_date(request.end, "end"),
+                    start=_parse_optional_date(request.start, "start"),
+                    end=_parse_optional_date(request.end, "end"),
                     max_points=request.max_points or rates.DEFAULT_MAX_POINTS,
                 )
             except DomainError as error:

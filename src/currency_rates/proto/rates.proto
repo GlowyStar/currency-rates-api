@@ -25,7 +25,8 @@ message LatestResponse {
 message HistoryRequest {
   string base = 1;
   string symbol = 2;
-  // YYYY-MM-DD, both ends included
+  // YYYY-MM-DD, both ends included; empty end means today (UTC),
+  // empty start means a year before end
   string start = 3;
   string end = 4;
   // 0 means the default of 200

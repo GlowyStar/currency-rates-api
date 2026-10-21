@@ -14,6 +14,7 @@ from currency_rates.storage import clickhouse, postgres
 from currency_rates.storage.postgres import Currency
 
 DEFAULT_MAX_POINTS = 200
+DEFAULT_PERIOD = dt.timedelta(days=365)
 MAX_POINTS_LIMIT = 1000
 
 
@@ -54,12 +55,18 @@ async def get_history(
     *,
     base: str,
     quote: str,
-    start: dt.date,
-    end: dt.date,
+    start: dt.date | None,
+    end: dt.date | None,
     max_points: int,
 ) -> History:
-    """Returns the rates of a pair averaged into at most max_points equal day buckets."""
+    """Returns the rates of a pair averaged into at most max_points equal day buckets.
+
+    The period ends today (UTC) unless end is given and starts DEFAULT_PERIOD before its
+    end unless start is given.
+    """
     base, quote = _normalize(base), _normalize(quote)
+    end = end if end is not None else dt.datetime.now(dt.UTC).date()
+    start = start if start is not None else end - DEFAULT_PERIOD
     if start > end:
         raise InvalidRequestError("start must not be after end")
     if not 1 <= max_points <= MAX_POINTS_LIMIT:

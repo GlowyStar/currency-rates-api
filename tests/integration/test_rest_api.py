@@ -122,6 +122,19 @@ async def test_history_is_downsampled(client: httpx.AsyncClient, api_key: str) -
     ]
 
 
+async def test_history_period_defaults_to_the_last_year(
+    client: httpx.AsyncClient, api_key: str
+) -> None:
+    response = await client.get(
+        "/v1/rates/history",
+        params={"base": "USD", "symbol": "EUR", "max_points": "183"},
+        headers={"X-API-Key": api_key},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["bucket_days"] == 2
+
+
 @pytest.mark.parametrize(
     "overrides",
     [

@@ -128,8 +128,8 @@ async def rate_history(
     resources: ResourcesDep,
     base: Annotated[str, Query(examples=["USD"])],
     symbol: Annotated[str, Query(examples=["EUR"])],
-    start: dt.date,
-    end: dt.date,
+    start: Annotated[dt.date | None, Query(description="A year before end if empty")] = None,
+    end: Annotated[dt.date | None, Query(description="Today if empty")] = None,
     max_points: Annotated[
         int, Query(description=f"At most {rates.MAX_POINTS_LIMIT}")
     ] = rates.DEFAULT_MAX_POINTS,

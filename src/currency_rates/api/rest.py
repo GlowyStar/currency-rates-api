@@ -150,7 +150,7 @@ async def rate_history(
 
 
 async def handle_domain_error(request: Request, error: Exception) -> JSONResponse:
-    status_code = STATUS_BY_ERROR[type(error)]
+    status_code = STATUS_BY_ERROR.get(type(error), status.HTTP_400_BAD_REQUEST)
     headers = {"WWW-Authenticate": "APIKey"} if isinstance(error, InvalidApiKeyError) else None
     return JSONResponse({"detail": str(error)}, status_code=status_code, headers=headers)
 

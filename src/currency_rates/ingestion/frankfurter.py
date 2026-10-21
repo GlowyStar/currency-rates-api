@@ -4,7 +4,7 @@ import logging
 from collections.abc import Mapping
 
 import httpx
-from pydantic import BaseModel, PositiveFloat, TypeAdapter
+from pydantic import BaseModel, PositiveFloat, TypeAdapter, ValidationError
 
 from currency_rates.domain import Rate
 from currency_rates.errors import UpstreamError
@@ -30,6 +30,13 @@ _RATE_ROWS = TypeAdapter(list[_RateRow])
 _CURRENCY_ROWS = TypeAdapter(list[_CurrencyRow])
 
 
+def _validate[T](rows: TypeAdapter[T], content: bytes, path: str) -> T:
+    try:
+        return rows.validate_json(content)
+    except ValidationError as error:
+        raise UpstreamError(path, "unexpected response") from error
+
+
 def _is_retryable(error: httpx.HTTPError) -> bool:
     if isinstance(error, httpx.HTTPStatusError):
         status = error.response.status_code
@@ -48,8 +55,9 @@ class FrankfurterClient:
         self._backoff_seconds = backoff_seconds
 
     async def currencies(self) -> dict[str, str]:
-        content = await self._get("/v2/currencies", {"providers": "ECB"})
-        return {row.iso_code: row.name for row in _CURRENCY_ROWS.validate_json(content)}
+        path = "/v2/currencies"
+        content = await self._get(path, {"providers": "ECB"})
+        return {row.iso_code: row.name for row in _validate(_CURRENCY_ROWS, content, path)}
 
     async def eur_rates(self, start: dt.date, end: dt.date) -> list[Rate]:
         params = {
@@ -58,10 +66,11 @@ class FrankfurterClient:
             "from": start.isoformat(),
             "to": end.isoformat(),
         }
-        content = await self._get("/v2/rates", params)
+        path = "/v2/rates"
+        content = await self._get(path, params)
         return [
             Rate(row.base, row.quote, row.date, row.rate)
-            for row in _RATE_ROWS.validate_json(content)
+            for row in _validate(_RATE_ROWS, content, path)
         ]
 
     async def _get(self, path: str, params: Mapping[str, str]) -> bytes:
@@ -73,7 +82,7 @@ class FrankfurterClient:
                 return response.content
             except httpx.HTTPError as error:
                 if attempt == self._attempts or not _is_retryable(error):
-                    raise UpstreamError(path, attempt) from error
+                    raise UpstreamError(path, f"failed after {attempt} attempt(s)") from error
                 delay = self._backoff_seconds * 2 ** (attempt - 1)
                 logger.warning("GET %s failed: %s; retry in %.1f s", path, error, delay)
                 await asyncio.sleep(delay)

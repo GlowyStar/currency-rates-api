@@ -69,6 +69,8 @@ async def get_currency_codes(session: AsyncSession) -> set[str]:
 
 
 async def upsert_currencies(session: AsyncSession, names_by_code: Mapping[str, str]) -> None:
+    if not names_by_code:
+        return
     rows = [{"code": code, "name": name} for code, name in names_by_code.items()]
     statement = insert(Currency).values(rows)
     statement = statement.on_conflict_do_update(

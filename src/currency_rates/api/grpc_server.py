@@ -34,6 +34,10 @@ Context = grpc.aio.ServicerContext[Any, Any]
 logger = logging.getLogger(__name__)
 
 
+def _status_of(error: DomainError) -> grpc.StatusCode:
+    return STATUS_BY_ERROR.get(type(error), grpc.StatusCode.INVALID_ARGUMENT)
+
+
 def _api_key(context: Context) -> str:
     metadata = dict(context.invocation_metadata() or ())
     api_key = metadata.get(API_KEY_METADATA, "")
@@ -66,7 +70,7 @@ class RatesServicer(rates_pb2_grpc.RatesServiceServicer):
                     session, self._clickhouse, request.base, request.symbols
                 )
             except DomainError as error:
-                await context.abort(STATUS_BY_ERROR[type(error)], str(error))
+                await context.abort(_status_of(error), str(error))
 
         return rates_pb2.LatestResponse(
             base=latest.base, date=latest.date.isoformat(), rates=latest.rates
@@ -88,7 +92,7 @@ class RatesServicer(rates_pb2_grpc.RatesServiceServicer):
                     max_points=request.max_points or rates.DEFAULT_MAX_POINTS,
                 )
             except DomainError as error:
-                await context.abort(STATUS_BY_ERROR[type(error)], str(error))
+                await context.abort(_status_of(error), str(error))
 
         for point in history.points:
             yield rates_pb2.HistoryPoint(date=point.date.isoformat(), rate=point.rate)
@@ -107,6 +111,7 @@ async def serve(settings: Settings) -> None:
     try:
         await server.wait_for_termination()
     finally:
+        await server.stop(grace=5)
         await clickhouse_client.close()
         await engine.dispose()
 

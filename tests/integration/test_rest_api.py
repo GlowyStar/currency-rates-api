@@ -80,6 +80,16 @@ async def test_unknown_currency_is_rejected(client: httpx.AsyncClient, api_key: 
     assert response.json() == {"detail": "Unknown currency code(s): XXX"}
 
 
+async def test_base_among_symbols_is_rejected(client: httpx.AsyncClient, api_key: str) -> None:
+    response = await client.get(
+        "/v1/rates/latest",
+        params={"base": "USD", "symbols": "EUR,USD"},
+        headers={"X-API-Key": api_key},
+    )
+
+    assert response.status_code == 422
+
+
 async def test_base_without_rates_is_not_found(
     client: httpx.AsyncClient, api_key: str
 ) -> None:

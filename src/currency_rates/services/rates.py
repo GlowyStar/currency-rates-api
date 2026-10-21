@@ -38,6 +38,8 @@ async def get_latest(
     """Returns the rates of the last published day; no symbols means every known currency."""
     base = _normalize(base)
     quotes = [_normalize(symbol) for symbol in symbols if symbol.strip()]
+    if base in quotes:
+        raise InvalidRequestError("symbols must not contain the base")
     known = await postgres.get_currency_codes(session)
     _ensure_known(known, [base, *quotes])
 

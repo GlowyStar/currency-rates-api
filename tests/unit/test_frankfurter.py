@@ -3,7 +3,6 @@ from collections.abc import Callable
 
 import httpx
 import pytest
-from pydantic import ValidationError
 
 from currency_rates.domain import Rate
 from currency_rates.errors import UpstreamError
@@ -97,10 +96,9 @@ async def test_transient_failures_are_retried(failure: httpx.Response | Exceptio
 async def test_gives_up_after_the_last_attempt() -> None:
     handler, calls = _failing_then_ok([httpx.Response(502)] * 5)
 
-    with pytest.raises(UpstreamError) as raised:
+    with pytest.raises(UpstreamError, match="failed after 3 attempt"):
         await _client(handler, attempts=3).currencies()
 
-    assert raised.value.attempts == 3
     assert len(calls) == 3
 
 
@@ -119,5 +117,5 @@ async def test_non_positive_rate_is_rejected() -> None:
             200, json=[{"date": "2026-10-21", "base": "EUR", "quote": "USD", "rate": 0}]
         )
 
-    with pytest.raises(ValidationError):
+    with pytest.raises(UpstreamError, match="unexpected response"):
         await _client(handler).eur_rates(dt.date(2026, 10, 21), dt.date(2026, 10, 21))

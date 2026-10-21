@@ -79,20 +79,24 @@ async def run(settings: Settings) -> None:
     session_factory = postgres.create_session_factory(engine)
     clickhouse_client = await clickhouse.connect(settings)
 
-    async with httpx.AsyncClient(base_url=settings.frankfurter_url, timeout=30) as http:
-        frankfurter = FrankfurterClient(http)
-        while True:
-            try:
-                await sync_currencies(frankfurter, session_factory)
-                await sync_rates(
-                    frankfurter,
-                    clickhouse_client,
-                    today=dt.datetime.now(dt.UTC).date(),
-                    backfill_days=settings.backfill_days,
-                )
-            except UpstreamError:
-                logger.exception("Sync failed, the next attempt runs on schedule")
-            await asyncio.sleep(settings.poll_interval_seconds)
+    try:
+        async with httpx.AsyncClient(base_url=settings.frankfurter_url, timeout=30) as http:
+            frankfurter = FrankfurterClient(http)
+            while True:
+                try:
+                    await sync_currencies(frankfurter, session_factory)
+                    await sync_rates(
+                        frankfurter,
+                        clickhouse_client,
+                        today=dt.datetime.now(dt.UTC).date(),
+                        backfill_days=settings.backfill_days,
+                    )
+                except UpstreamError:
+                    logger.exception("Sync failed, the next attempt runs on schedule")
+                await asyncio.sleep(settings.poll_interval_seconds)
+    finally:
+        await clickhouse_client.close()
+        await engine.dispose()
 
 
 def main() -> None:

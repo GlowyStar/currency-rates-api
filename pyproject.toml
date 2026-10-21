@@ -1,0 +1,46 @@
+[project]
+name = "currency-rates"
+version = "0.1.0"
+description = "Currency exchange rates service with REST and gRPC APIs"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    "alembic>=1.20.0",
+    "asyncpg>=0.32.0",
+    "clickhouse-connect[async]>=1.11.0",
+    "fastapi>=0.158.2",
+    "grpcio>=1.84.0",
+    "httpx>=0.28.1",
+    "protobuf>=7.36.2",
+    "pydantic>=2.14.1",
+    "pydantic-settings>=2.16.1",
+    "sqlalchemy[asyncio]>=2.1.6",
+    "uvicorn>=0.54.0",
+]
+
+[build-system]
+requires = ["uv_build>=0.11,<0.14"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "grpcio-tools>=1.84.0",
+    "mypy>=2.4.0",
+    "pytest>=9.1.1",
+    "pytest-asyncio>=1.4.0",
+    "ruff>=0.17.1",
+    "types-grpcio>=1.84.0.20261021",
+    "types-protobuf>=7.35.1.20260906",
+]
+
+[tool.ruff]
+line-length = 95
+target-version = "py312"
+extend-exclude = ["src/currency_rates/proto"]
+
+[tool.ruff.lint]
+select = ["E", "W", "F", "I", "B", "UP", "SIM", "ASYNC", "RUF"]
+
+[tool.mypy]
+strict = true
+files = ["src"]
+plugins = ["pydantic.mypy"]

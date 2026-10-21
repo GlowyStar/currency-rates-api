@@ -14,6 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 from currency_rates.errors import (
     DomainError,
     InvalidApiKeyError,
+    InvalidRequestError,
     RatesNotFoundError,
     UnknownCurrencyError,
 )
@@ -23,6 +24,7 @@ from currency_rates.storage import clickhouse, postgres
 
 STATUS_BY_ERROR: dict[type[Exception], int] = {
     UnknownCurrencyError: status.HTTP_422_UNPROCESSABLE_CONTENT,
+    InvalidRequestError: status.HTTP_422_UNPROCESSABLE_CONTENT,
     RatesNotFoundError: status.HTTP_404_NOT_FOUND,
     InvalidApiKeyError: status.HTTP_401_UNAUTHORIZED,
 }
@@ -47,6 +49,18 @@ class LatestRatesOut(BaseModel):
     base: str
     date: dt.date
     rates: dict[str, float]
+
+
+class HistoryPointOut(BaseModel):
+    date: dt.date
+    rate: float
+
+
+class HistoryOut(BaseModel):
+    base: str
+    symbol: str
+    bucket_days: int
+    points: list[HistoryPointOut]
 
 
 class HealthOut(BaseModel):
@@ -106,6 +120,33 @@ async def latest_rates(
 ) -> LatestRatesOut:
     latest = await rates.get_latest(session, resources.clickhouse, base, symbols.split(","))
     return LatestRatesOut(base=latest.base, date=latest.date, rates=latest.rates)
+
+
+@rates_router.get("/history", response_model=HistoryOut)
+async def rate_history(
+    session: SessionDep,
+    resources: ResourcesDep,
+    base: Annotated[str, Query(examples=["USD"])],
+    symbol: Annotated[str, Query(examples=["EUR"])],
+    start: dt.date,
+    end: dt.date,
+    max_points: Annotated[
+        int, Query(description=f"At most {rates.MAX_POINTS_LIMIT}")
+    ] = rates.DEFAULT_MAX_POINTS,
+) -> HistoryOut:
+    history = await rates.get_history(
+        session,
+        resources.clickhouse,
+        base=base,
+        quote=symbol,
+        start=start,
+        end=end,
+        max_points=max_points,
+    )
+    points = [HistoryPointOut(date=point.date, rate=point.rate) for point in history.points]
+    return HistoryOut(
+        base=history.base, symbol=history.quote, bucket_days=history.bucket_days, points=points
+    )
 
 
 async def handle_domain_error(request: Request, error: Exception) -> JSONResponse:

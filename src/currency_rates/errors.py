@@ -15,6 +15,10 @@ class UnknownCurrencyError(DomainError):
         self.codes = list(codes)
 
 
+class InvalidRequestError(DomainError):
+    pass
+
+
 class RatesNotFoundError(DomainError):
     def __init__(self, base: str) -> None:
         super().__init__(f"No rates found for base {base}")

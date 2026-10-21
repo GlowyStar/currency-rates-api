@@ -4,7 +4,7 @@ from collections.abc import Sequence
 import clickhouse_connect
 from clickhouse_connect.driver import AsyncClient
 
-from currency_rates.domain import Rate
+from currency_rates.domain import LatestRates, Rate
 from currency_rates.settings import Settings
 
 # ReplacingMergeTree keeps the row with the latest ingested_at per (base, quote, date),
@@ -24,6 +24,15 @@ ORDER BY (base, quote, date)
 """
 
 RATE_COLUMNS = ("base", "quote", "date", "rate")
+
+LATEST_SQL = """
+SELECT quote, rate, date
+FROM rates FINAL
+WHERE base = {base:String}
+    AND has({quotes:Array(String)}, quote)
+    AND date = (SELECT max(date) FROM rates WHERE base = {base:String})
+ORDER BY quote
+"""
 
 
 async def connect(settings: Settings) -> AsyncClient:
@@ -51,3 +60,15 @@ async def last_rate_date(client: AsyncClient) -> dt.date | None:
     result = await client.query("SELECT maxOrNull(date) FROM rates")
     last_date: dt.date | None = result.result_rows[0][0]
     return last_date
+
+
+async def latest_rates(
+    client: AsyncClient, base: str, quotes: Sequence[str]
+) -> LatestRates | None:
+    result = await client.query(LATEST_SQL, parameters={"base": base, "quotes": list(quotes)})
+    rows = result.result_rows
+    if not rows:
+        return None
+    return LatestRates(
+        base=base, date=rows[0][2], rates={quote: rate for quote, rate, _ in rows}
+    )

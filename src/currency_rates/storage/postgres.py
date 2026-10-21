@@ -1,11 +1,24 @@
 import datetime as dt
+import logging
 from collections.abc import Mapping, Sequence
 from typing import Any, ClassVar
 
-from sqlalchemy import BigInteger, CheckConstraint, DateTime, Identity, Text, func, select
+from sqlalchemy import (
+    BigInteger,
+    CheckConstraint,
+    DateTime,
+    Identity,
+    Text,
+    func,
+    select,
+    text,
+)
 from sqlalchemy.dialects.postgresql import insert
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
+
+logger = logging.getLogger(__name__)
 
 
 class Base(DeclarativeBase):
@@ -33,6 +46,16 @@ class ApiClient(Base):
 
 def create_session_factory(engine: AsyncEngine) -> async_sessionmaker[AsyncSession]:
     return async_sessionmaker(engine, expire_on_commit=False)
+
+
+async def ping(session_factory: async_sessionmaker[AsyncSession]) -> bool:
+    try:
+        async with session_factory() as session:
+            await session.execute(text("SELECT 1"))
+    except (SQLAlchemyError, OSError):
+        logger.warning("Postgres health check failed", exc_info=True)
+        return False
+    return True
 
 
 async def list_currencies(session: AsyncSession) -> Sequence[Currency]:

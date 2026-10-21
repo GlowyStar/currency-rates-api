@@ -8,3 +8,10 @@ class Rate:
     quote: str
     date: dt.date
     value: float
+
+
+@dataclass(frozen=True, slots=True)
+class LatestRates:
+    base: str
+    date: dt.date
+    rates: dict[str, float]

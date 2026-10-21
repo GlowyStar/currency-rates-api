@@ -16,8 +16,14 @@ from currency_rates.settings import Settings
 from currency_rates.storage import clickhouse, postgres
 
 WINDOW_DAYS = 365
+# The ECB publishes five or six significant digits; a cross rate has no more precision.
+SIGNIFICANT_DIGITS = 6
 
 logger = logging.getLogger(__name__)
+
+
+def _round_significant(value: float) -> float:
+    return float(f"{value:.{SIGNIFICANT_DIGITS}g}")
 
 
 def derive_cross_rates(eur_rates: Iterable[Rate]) -> list[Rate]:
@@ -31,7 +37,8 @@ def derive_cross_rates(eur_rates: Iterable[Rate]) -> list[Rate]:
     crosses = []
     for date, eur_to in eur_to_by_date.items():
         for (base, base_value), (quote, quote_value) in permutations(eur_to.items(), 2):
-            crosses.append(Rate(base, quote, date, quote_value / base_value))
+            cross_value = _round_significant(quote_value / base_value)
+            crosses.append(Rate(base, quote, date, cross_value))
     return crosses
 
 

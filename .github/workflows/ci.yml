@@ -1,0 +1,70 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_USER: rates
+          POSTGRES_PASSWORD: rates
+          POSTGRES_DB: rates_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U rates -d rates_test"
+          --health-interval 2s
+          --health-timeout 5s
+          --health-retries 30
+      clickhouse:
+        image: clickhouse/clickhouse-server:26.8
+        env:
+          CLICKHOUSE_USER: rates
+          CLICKHOUSE_PASSWORD: rates
+          CLICKHOUSE_DB: rates_test
+        ports:
+          - 8123:8123
+        options: >-
+          --ulimit nofile=262144:262144
+          --health-cmd "wget -q -O - http://localhost:8123/ping"
+          --health-interval 2s
+          --health-timeout 5s
+          --health-retries 30
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: astral-sh/setup-uv@v10
+        with:
+          version: "0.11.8"
+          enable-cache: true
+
+      - run: uv sync --locked
+
+      - name: Lint
+        run: uv run ruff check
+
+      - name: Format
+        run: uv run ruff format --check
+
+      - name: Types
+        run: uv run mypy
+
+      - name: gRPC stubs match rates.proto
+        run: |
+          uv run python -m grpc_tools.protoc -I src --python_out=src --pyi_out=src \
+            --grpc_python_out=src src/currency_rates/proto/rates.proto
+          git diff --exit-code src/currency_rates/proto
+
+      - name: Tests
+        run: uv run pytest

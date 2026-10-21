@@ -44,3 +44,8 @@ select = ["E", "W", "F", "I", "B", "UP", "SIM", "ASYNC", "RUF"]
 strict = true
 files = ["src", "migrations"]
 plugins = ["pydantic.mypy"]
+untyped_calls_exclude = ["currency_rates.proto"]
+
+[[tool.mypy.overrides]]
+module = "currency_rates.proto.*"
+ignore_errors = true

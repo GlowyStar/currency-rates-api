@@ -1,0 +1,39 @@
+syntax = "proto3";
+
+package currency_rates.v1;
+
+// Every call needs the API key in the "x-api-key" metadata entry.
+service RatesService {
+  // Rates of the last published day; no symbols means every known currency.
+  rpc Latest(LatestRequest) returns (LatestResponse);
+  // Rates of a pair averaged into at most max_points equal day buckets.
+  rpc History(HistoryRequest) returns (stream HistoryPoint);
+}
+
+message LatestRequest {
+  string base = 1;
+  repeated string symbols = 2;
+}
+
+message LatestResponse {
+  string base = 1;
+  // YYYY-MM-DD
+  string date = 2;
+  map<string, double> rates = 3;
+}
+
+message HistoryRequest {
+  string base = 1;
+  string symbol = 2;
+  // YYYY-MM-DD, both ends included
+  string start = 3;
+  string end = 4;
+  // 0 means the default of 200
+  uint32 max_points = 5;
+}
+
+message HistoryPoint {
+  // First day of the bucket, YYYY-MM-DD
+  string date = 1;
+  double rate = 2;
+}
